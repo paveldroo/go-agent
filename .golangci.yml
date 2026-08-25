@@ -1,0 +1,125 @@
+version: "2"
+linters:
+  default: all
+  disable:
+    - depguard
+    - dupword
+    - gocyclo
+    - godot
+    - godox
+    - importas
+    - tagliatelle
+    - testpackage
+    - varnamelen
+    - wsl
+    - wsl_v5
+    - forcetypeassert
+    - gosec
+  settings:
+    exhaustruct:
+      exclude:
+        - github.com/aws/aws-sdk-go/aws.Config
+        - github.com/aws/aws-sdk-go/service/s3.*
+        - crypto/tls.Config
+        - github.com/segmentio/kafka-go.*
+        - net.Dialer
+        - google.golang.org/protobuf/types/known/durationpb.*
+        - net.http.Server
+    lll:
+      line-length: 140
+    misspell:
+      locale: US
+    revive:
+      enable-all-rules: true
+      rules:
+        - name: unhandled-error
+          arguments:
+            - fmt.Print.*
+            - strings.Builder.*
+            - bytes.Buffer.*
+          disabled: false
+        - name: var-naming
+          arguments:
+            - []
+            - []
+            - - skipPackageNameChecks: true
+          disabled: false
+        - name: import-alias-naming
+          arguments:
+            - ^[a-z][a-z0-9_]{0,}$
+          disabled: false
+        - name: add-constant
+          disabled: true
+        - name: cognitive-complexity
+          disabled: true
+        - name: cyclomatic
+          disabled: true
+        - name: file-header
+          disabled: true
+        - name: function-length
+          disabled: true
+        - name: line-length-limit
+          disabled: true
+        - name: confusing-results
+          disabled: true
+    staticcheck:
+      checks:
+        - all
+        - -ST1003
+    tagalign:
+      order:
+        - embed
+        - json
+        - yaml
+        - yml
+        - toml
+        - mapstructure
+        - binding
+        - validate
+        - default
+      strict: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - source: '^//go:generate '
+        linters:
+          - lll
+      - text: 'net/http.Get must not be called'
+        linters:
+          - noctx
+      - path: _test\.go
+        linters:
+          - exhaustruct
+          - funlen
+      - path: metrics.go
+        linters:
+          - exhaustruct
+          - gochecknoglobals
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+formatters:
+  enable:
+    - gci
+    - gofumpt
+    - goimports
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

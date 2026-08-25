@@ -1,0 +1,15 @@
+version: "3"
+
+dotenv: [".env"]
+
+tasks:
+  run:
+    - go run cmd/go_agent/main.go
+
+  lint:
+    - golangci-lint fmt
+    - golangci-lint run --enable-only tagalign,whitespace,nlreturn --fix
+    - golangci-lint run
+
+  test:
+    - go test ./... -v
