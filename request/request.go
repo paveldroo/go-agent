@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -34,10 +35,21 @@ type ChatResponse struct {
 	Choices []Choice `json:"choices"`
 }
 
-func Request() error {
+type Client struct {
+	http http.Client
+}
+
+func New() *Client {
+	c := http.Client{}
+	return &Client{
+		http: c,
+	}
+}
+
+func (*Client) Request(prompt string) (string, error) {
 	m := Message{
 		Role:    "user",
-		Content: "capital of the France",
+		Content: prompt,
 	}
 	cr := ChatRequest{
 		Model:    os.Getenv("MODEL_NAME"),
@@ -50,12 +62,12 @@ func Request() error {
 
 	b, err := json.Marshal(cr)
 	if err != nil {
-		return fmt.Errorf("marshal chat request: %w", err)
+		return "", fmt.Errorf("marshal chat request: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(context.TODO(), "POST", os.Getenv("LLM_URL"), bytes.NewBuffer(b))
 	if err != nil {
-		return fmt.Errorf("new request to llm: %w", err)
+		return "", fmt.Errorf("new request to llm: %w", err)
 	}
 
 	req.Header.Set("Authorization", "Bearer "+os.Getenv("LLM_API_KEY"))
@@ -64,17 +76,17 @@ func Request() error {
 	client := &http.Client{} //nolint:exhaustruct // it's ok for pet project
 	res, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("make request to llm: %w", err)
+		return "", fmt.Errorf("make request to llm: %w", err)
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("llm request status code: %d", res.StatusCode)
+		return "", fmt.Errorf("llm request status code: %d", res.StatusCode)
 	}
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return fmt.Errorf("read response body: %w", err)
+		return "", fmt.Errorf("read response body: %w", err)
 	}
 
 	chatResponse := ChatResponse{
@@ -83,10 +95,12 @@ func Request() error {
 
 	err = json.Unmarshal(body, &chatResponse)
 	if err != nil {
-		return fmt.Errorf("unmarshal response body to chat request: %w", err)
+		return "", fmt.Errorf("unmarshal response body to chat request: %w", err)
 	}
 
-	fmt.Println("llm response: ", chatResponse.Choices[0].Message.Content)
+	if len(chatResponse.Choices) == 0 {
+		return "", errors.New("no content from llm")
+	}
 
-	return nil
+	return chatResponse.Choices[0].Message.Content, nil
 }

@@ -4,7 +4,7 @@ dotenv: [".env"]
 
 tasks:
   run:
-    - go run cmd/go_agent/main.go -task "make something special"
+    - go run cmd/go_agent/main.go -task "tell a joke"
 
   lint:
     - golangci-lint fmt

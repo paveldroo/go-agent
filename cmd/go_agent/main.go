@@ -19,8 +19,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	err := request.Request()
+	client := request.New()
+
+	resp, err := client.Request(task)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error requesting llm: %s\n", err.Error())
 	}
+
+	fmt.Fprintln(os.Stdout, resp)
 }
