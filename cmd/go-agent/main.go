@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/paveldroo/go-agent/config"
 	"github.com/paveldroo/go-agent/request"
 )
 
@@ -19,7 +20,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	client := request.New()
+	cfg := config.New()
+	client := request.New(cfg)
 
 	resp, err := client.Request(task)
 	if err != nil {

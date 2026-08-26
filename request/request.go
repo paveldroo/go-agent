@@ -8,7 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
+
+	"github.com/paveldroo/go-agent/config"
 )
 
 type Message struct {
@@ -37,22 +38,24 @@ type ChatResponse struct {
 
 type Client struct {
 	http http.Client
+	cfg  *config.Config
 }
 
-func New() *Client {
+func New(cfg *config.Config) *Client {
 	c := http.Client{}
 	return &Client{
 		http: c,
+		cfg:  cfg,
 	}
 }
 
-func (*Client) Request(prompt string) (string, error) {
+func (c *Client) Request(prompt string) (string, error) {
 	m := Message{
 		Role:    "user",
 		Content: prompt,
 	}
 	cr := ChatRequest{
-		Model:    os.Getenv("MODEL_NAME"),
+		Model:    c.cfg.ModelName,
 		Messages: []Message{m},
 		Stream:   false,
 		ChatTemplateKwargs: ChatTemplateKwargs{
@@ -65,12 +68,12 @@ func (*Client) Request(prompt string) (string, error) {
 		return "", fmt.Errorf("marshal chat request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(context.TODO(), "POST", os.Getenv("LLM_URL"), bytes.NewBuffer(b))
+	req, err := http.NewRequestWithContext(context.TODO(), "POST", c.cfg.LLMURL, bytes.NewBuffer(b))
 	if err != nil {
 		return "", fmt.Errorf("new request to llm: %w", err)
 	}
 
-	req.Header.Set("Authorization", "Bearer "+os.Getenv("LLM_API_KEY"))
+	req.Header.Set("Authorization", "Bearer "+c.cfg.ApiKey)
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{} //nolint:exhaustruct // it's ok for pet project
