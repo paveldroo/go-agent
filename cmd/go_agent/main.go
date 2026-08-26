@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
+	"github.com/paveldroo/go-agent/request"
 )
 
 func main() {
@@ -17,5 +19,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println(task)
+	err := request.Request()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error requesting llm: %s\n", err.Error())
+	}
 }
