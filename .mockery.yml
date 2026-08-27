@@ -1,0 +1,9 @@
+dir: '{{.InterfaceDir}}/mocks'
+structname: '{{.InterfaceName | firstUpper }}'
+filename: '{{.InterfaceName | snakecase }}_mock.go'
+pkgname: mocks
+template: testify
+packages:
+  github.com/paveldroo/go-agent/request:
+    interfaces:
+      Client: {}

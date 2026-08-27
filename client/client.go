@@ -1,4 +1,4 @@
-package request
+package client
 
 import (
 	"bytes"
@@ -12,29 +12,10 @@ import (
 	"github.com/paveldroo/go-agent/config"
 )
 
-type Message struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
-type ChatTemplateKwargs struct {
-	EnableThinking bool `json:"enable_thinking"`
-}
-
-type ChatRequest struct {
-	Model              string             `json:"model"`
-	Messages           []Message          `json:"messages"`
-	Stream             bool               `json:"stream"`
-	ChatTemplateKwargs ChatTemplateKwargs `json:"chat_template_kwargs"`
-}
-
-type Choice struct {
-	Message Message `json:"message"`
-}
-
-type ChatResponse struct {
-	Choices []Choice `json:"choices"`
-}
+var (
+	errStatusCode = errors.New("llm request status code")
+	errNoContent  = errors.New("no content from llm")
+)
 
 type Client struct {
 	http http.Client
@@ -42,7 +23,8 @@ type Client struct {
 }
 
 func New(cfg *config.Config) *Client {
-	c := http.Client{}
+	c := http.Client{} //nolint:exhaustruct // it's ok for petproject
+
 	return &Client{
 		http: c,
 		cfg:  cfg,
@@ -68,12 +50,12 @@ func (c *Client) Request(prompt string) (string, error) {
 		return "", fmt.Errorf("marshal chat request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(context.TODO(), "POST", c.cfg.LLMURL, bytes.NewBuffer(b))
+	req, err := http.NewRequestWithContext(context.TODO(), http.MethodPost, c.cfg.LLMURL, bytes.NewBuffer(b))
 	if err != nil {
 		return "", fmt.Errorf("new request to llm: %w", err)
 	}
 
-	req.Header.Set("Authorization", "Bearer "+c.cfg.ApiKey)
+	req.Header.Set("Authorization", "Bearer "+c.cfg.APIKey)
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{} //nolint:exhaustruct // it's ok for pet project
@@ -84,7 +66,7 @@ func (c *Client) Request(prompt string) (string, error) {
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("llm request status code: %d", res.StatusCode)
+		return "", fmt.Errorf("%w: %d", errStatusCode, res.StatusCode)
 	}
 
 	body, err := io.ReadAll(res.Body)
@@ -102,7 +84,7 @@ func (c *Client) Request(prompt string) (string, error) {
 	}
 
 	if len(chatResponse.Choices) == 0 {
-		return "", errors.New("no content from llm")
+		return "", errNoContent
 	}
 
 	return chatResponse.Choices[0].Message.Content, nil

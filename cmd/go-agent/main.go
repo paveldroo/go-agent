@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/paveldroo/go-agent/client"
 	"github.com/paveldroo/go-agent/config"
-	"github.com/paveldroo/go-agent/request"
 )
 
 func main() {
@@ -21,9 +21,9 @@ func main() {
 	}
 
 	cfg := config.New()
-	client := request.New(cfg)
+	c := client.New(cfg)
 
-	resp, err := client.Request(task)
+	resp, err := c.Request(task)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error requesting llm: %s\n", err.Error())
 	}
