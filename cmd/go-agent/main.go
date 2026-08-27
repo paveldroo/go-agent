@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -9,15 +10,25 @@ import (
 	"github.com/paveldroo/go-agent/config"
 )
 
+var errDefineTask = errors.New("you should define a task for agent")
+
 func main() {
 	var task string
 	flag.StringVar(&task, "task", "", "task for agent")
 
 	flag.Parse()
 
-	if len(task) == 0 {
-		fmt.Fprint(os.Stderr, "you should define a task for agent\n")
+	err := run(task)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "go-agent: error: %s\n", err.Error())
 		os.Exit(1)
+	}
+	os.Exit(0)
+}
+
+func run(task string) error {
+	if len(task) == 0 {
+		return errDefineTask
 	}
 
 	cfg := config.New()
@@ -25,8 +36,10 @@ func main() {
 
 	resp, err := c.Request(task)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error requesting llm: %s\n", err.Error())
+		return fmt.Errorf("requesting llm: %w", err)
 	}
 
 	fmt.Fprintln(os.Stdout, resp)
+
+	return nil
 }
