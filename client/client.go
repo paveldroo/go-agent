@@ -10,6 +10,8 @@ import (
 	"net/http"
 
 	"github.com/paveldroo/go-agent/config"
+	"github.com/paveldroo/go-agent/tool/tool"
+	"github.com/paveldroo/go-agent/tool/tool_call"
 )
 
 var (
@@ -33,9 +35,13 @@ func New(cfg *config.Config) *Client {
 
 func (c *Client) Request(prompt string) (string, error) {
 	m := Message{
-		Role:    "user",
-		Content: prompt,
+		Role:      "user",
+		Content:   prompt,
+		ToolCalls: []tool_call.ToolCall{},
 	}
+
+	t := tool.New()
+
 	cr := ChatRequest{
 		Model:    c.cfg.ModelName,
 		Messages: []Message{m},
@@ -43,6 +49,8 @@ func (c *Client) Request(prompt string) (string, error) {
 		ChatTemplateKwargs: ChatTemplateKwargs{
 			EnableThinking: false,
 		},
+		Tools:      []tool.Tool{t},
+		ToolChoice: "auto",
 	}
 
 	b, err := json.Marshal(cr)
@@ -87,5 +95,13 @@ func (c *Client) Request(prompt string) (string, error) {
 		return "", errNoContent
 	}
 
-	return chatResponse.Choices[0].Message.Content, nil
+	firstChoice := chatResponse.Choices[0]
+
+	if len(firstChoice.Message.ToolCalls) != 0 {
+		firstToolCall := firstChoice.Message.ToolCalls[0]
+
+		return fmt.Sprintf("%v", firstToolCall), nil
+	}
+
+	return firstChoice.Message.Content, nil
 }

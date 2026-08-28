@@ -3,8 +3,11 @@ version: "3"
 dotenv: [".env"]
 
 tasks:
-  run:
-    - go run cmd/go-agent/main.go -task "tell a joke"
+  run-tool:
+    - go run cmd/go-agent/main.go -task "what is the weather in Tokio?"
+
+  run-prompt:
+   -  go run cmd/go-agent/main.go -task "tell a joke"
 
   lint:
     - golangci-lint fmt

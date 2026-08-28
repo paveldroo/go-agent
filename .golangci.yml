@@ -48,6 +48,10 @@ linters:
           arguments:
             - ^[a-z][a-z0-9_]{0,}$
           disabled: false
+        - name: package-naming
+          disabled: false
+          arguments:
+            - convention-name-check-regex: "^[a-z][a-z0-9_]*$"
         - name: add-constant
           disabled: true
         - name: cognitive-complexity
