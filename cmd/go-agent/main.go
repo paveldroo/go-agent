@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 
@@ -10,15 +9,13 @@ import (
 	"github.com/paveldroo/go-agent/config"
 )
 
-var errDefineTask = errors.New("you should define a task for agent")
+var (
+	errMissedArgument = errors.New(`missing argument, usage: <go-agent "what is weather in Paris?">`)
+	errDefineTask     = errors.New("you should define a task for agent")
+)
 
 func main() {
-	var task string
-	flag.StringVar(&task, "task", "", "task for agent")
-
-	flag.Parse()
-
-	err := run(task)
+	err := run()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "go-agent: error: %s\n", err.Error())
 		os.Exit(1)
@@ -26,15 +23,21 @@ func main() {
 	os.Exit(0)
 }
 
-func run(task string) error {
-	if len(task) == 0 {
+func run() error {
+	if len(os.Args) < 2 { //nolint:mnd // convenient args usage
+		return errMissedArgument
+	}
+
+	prompt := os.Args[1]
+
+	if len(prompt) == 0 {
 		return errDefineTask
 	}
 
 	cfg := config.New()
 	c := client.New(cfg)
 
-	resp, err := c.Request(task)
+	resp, err := c.Request(prompt)
 	if err != nil {
 		return fmt.Errorf("requesting llm: %w", err)
 	}
