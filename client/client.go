@@ -8,40 +8,50 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/paveldroo/go-agent/config"
 	"github.com/paveldroo/go-agent/tool/tool"
 	"github.com/paveldroo/go-agent/tool/tool_call"
 )
 
+const (
+	reasonToolCalls = "tool_calls"
+	reasonLength    = "length"
+	httpTimeout     = 30 * time.Second
+)
+
 var (
-	errStatusCode       = errors.New("llm request status code")
-	errNoContent        = errors.New("no content from llm")
-	errStatusBadRequest = errors.New("status 400 from server")
+	errStatusCode         = errors.New("llm request status code")
+	errNoContent          = errors.New("no content from llm")
+	errStatusBadRequest   = errors.New("status 400 from server")
+	errToolCallsCorrupted = errors.New("it seems tool calls tokens arrived corrupted")
 )
 
 type Client struct {
-	http http.Client
-	cfg  *config.Config
+	http        http.Client
+	cfg         *config.Config
+	weatherTool tool.Tool
 }
 
 func New(cfg *config.Config) *Client {
-	c := http.Client{} //nolint:exhaustruct // it's ok for petproject
+	c := http.Client{ //nolint:exhaustruct // it's ok for petproject
+		Timeout: httpTimeout,
+	}
 
 	return &Client{
-		http: c,
-		cfg:  cfg,
+		http:        c,
+		cfg:         cfg,
+		weatherTool: tool.WeatherTool(),
 	}
 }
 
-func (c *Client) Request(prompt string) (string, error) {
+func (c *Client) Request(ctx context.Context, prompt string) (string, error) {
 	m := Message{
 		Role:      "user",
 		Content:   prompt,
 		ToolCalls: []tool_call.ToolCall{},
 	}
-
-	t := tool.New()
 
 	cr := ChatRequest{
 		Model:    c.cfg.ModelName,
@@ -50,7 +60,7 @@ func (c *Client) Request(prompt string) (string, error) {
 		ChatTemplateKwargs: ChatTemplateKwargs{
 			EnableThinking: false,
 		},
-		Tools:      []tool.Tool{t},
+		Tools:      []tool.Tool{c.weatherTool},
 		ToolChoice: "auto",
 	}
 
@@ -59,7 +69,7 @@ func (c *Client) Request(prompt string) (string, error) {
 		return "", fmt.Errorf("marshal chat request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(context.TODO(), http.MethodPost, c.cfg.LLMURL, bytes.NewBuffer(b))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.LLMURL, bytes.NewBuffer(b))
 	if err != nil {
 		return "", fmt.Errorf("new request to llm: %w", err)
 	}
@@ -67,8 +77,7 @@ func (c *Client) Request(prompt string) (string, error) {
 	req.Header.Set("Authorization", "Bearer "+c.cfg.APIKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{} //nolint:exhaustruct // it's ok for pet project
-	res, err := client.Do(req)
+	res, err := c.http.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("make request to llm: %w", err)
 	}
@@ -84,7 +93,7 @@ func (c *Client) Request(prompt string) (string, error) {
 			return "", fmt.Errorf("%w, body: %s", errStatusBadRequest, body)
 		}
 
-		return "", fmt.Errorf("%w: %d", errStatusCode, res.StatusCode)
+		return "", fmt.Errorf("%w: %d, body: %s", errStatusCode, res.StatusCode, body)
 	}
 
 	chatResponse := ChatResponse{
@@ -102,24 +111,27 @@ func (c *Client) Request(prompt string) (string, error) {
 
 	firstChoice := chatResponse.Choices[0]
 
-	if len(firstChoice.Message.ToolCalls) != 0 {
-		return printToolCallArgs(firstChoice)
+	if firstChoice.FinishReason == reasonToolCalls ||
+		(firstChoice.FinishReason == reasonLength && len(firstChoice.Message.ToolCalls) != 0) {
+		return parseToolCallArgs(firstChoice)
 	}
 
 	return firstChoice.Message.Content, nil
 }
 
-func printToolCallArgs(choice Choice) (string, error) {
+func parseToolCallArgs(choice Choice) (string, error) {
+	if len(choice.Message.ToolCalls) == 0 {
+		return "", errToolCallsCorrupted
+	}
 	firstToolCall := choice.Message.ToolCalls[0]
 
-	var args struct {
-		City string `json:"city"`
+	weatherArgs := tool.WeatherArgs{
+		City: "",
 	}
-
-	err := firstToolCall.Args(&args)
+	err := firstToolCall.Args(&weatherArgs)
 	if err != nil {
 		return "", fmt.Errorf("unmarshal tool call args: %w", err)
 	}
 
-	return fmt.Sprintf("%s(city=%q)", firstToolCall.Function.Name, args.City), nil
+	return fmt.Sprintf("%s(city=%q)", firstToolCall.Function.Name, weatherArgs.City), nil
 }

@@ -1,18 +1,14 @@
 package tool
 
-type City struct {
+type Property struct {
 	Type        string `json:"type"`
 	Description string `json:"description"`
 }
 
-type Properties struct {
-	City City `json:"city"`
-}
-
 type Parameters struct {
-	Type       string     `json:"type"`
-	Properties Properties `json:"properties"`
-	Required   []string   `json:"required"`
+	Type       string              `json:"type"`
+	Properties map[string]Property `json:"properties"`
+	Required   []string            `json:"required"`
 }
 
 type Function struct {
@@ -26,7 +22,11 @@ type Tool struct {
 	Function Function `json:"function"`
 }
 
-func New() Tool {
+type WeatherArgs struct {
+	City string `json:"city"`
+}
+
+func WeatherTool() Tool {
 	return Tool{
 		Type: "function",
 		Function: Function{
@@ -34,8 +34,8 @@ func New() Tool {
 			Description: "Get the current weather for a city.",
 			Parameters: Parameters{
 				Type: "object",
-				Properties: Properties{
-					City: City{
+				Properties: map[string]Property{
+					"city": {
 						Type:        "string",
 						Description: "The city, e.g. San Francisco.",
 					},
@@ -45,24 +45,3 @@ func New() Tool {
 		},
 	}
 }
-
-// "tools": [
-//   {
-//     "type": "function",
-//     "function": {
-//       "name": "get_weather",
-//       "description": "Get the current weather for a city.",
-//       "parameters": {
-//         "type": "object",
-//         "properties": {
-//           "location": {
-//             "type": "string",
-//             "description": "The city and state, e.g. San Francisco, CA"
-//           }
-//         },
-//         "required": ["location"]
-//       }
-//     }
-//   }
-// ],
-// "tool_choice": "auto"

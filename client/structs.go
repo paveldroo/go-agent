@@ -8,7 +8,7 @@ import (
 type Message struct {
 	Role      string               `json:"role"`
 	Content   string               `json:"content"`
-	ToolCalls []tool_call.ToolCall `json:"tool_calls"`
+	ToolCalls []tool_call.ToolCall `json:"tool_calls,omitempty"`
 }
 
 type ChatTemplateKwargs struct {
@@ -25,7 +25,8 @@ type ChatRequest struct {
 }
 
 type Choice struct {
-	Message Message `json:"message"`
+	Message      Message `json:"message"`
+	FinishReason string  `json:"finish_reason"`
 }
 
 type ChatResponse struct {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -34,10 +35,15 @@ func run() error {
 		return errDefineTask
 	}
 
-	cfg := config.New()
+	cfg, err := config.New()
+	if err != nil {
+		return fmt.Errorf("parse config: %w", err)
+	}
 	c := client.New(cfg)
 
-	resp, err := c.Request(prompt)
+	ctx := context.Background()
+
+	resp, err := c.Request(ctx, prompt)
 	if err != nil {
 		return fmt.Errorf("requesting llm: %w", err)
 	}

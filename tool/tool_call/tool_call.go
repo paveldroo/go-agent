@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-var errBadArguments = errors.New("model produced invalod tool arguments")
+var errBadArguments = errors.New("model produced invalid tool arguments")
 
 type Function struct {
 	Name      string `json:"name"`
@@ -14,10 +14,13 @@ type Function struct {
 }
 
 type ToolCall struct {
+	ID       string   `json:"id"`
+	Index    int      `json:"index"`
+	Type     string   `json:"type"`
 	Function Function `json:"function"`
 }
 
-func (tc *ToolCall) Args(v any) error {
+func (tc ToolCall) Args(v any) error {
 	err := json.Unmarshal([]byte(tc.Function.Arguments), v)
 	if err != nil {
 		return fmt.Errorf("%w: %s: %w", errBadArguments, tc.Function.Arguments, err)

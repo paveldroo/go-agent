@@ -1,6 +1,7 @@
 package client_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -34,7 +35,8 @@ func TestClient_Request(t *testing.T) {
 		ModelName: "",
 	}
 	c := client.New(&cfg)
-	got, err := c.Request("test prompt")
+	ctx := context.Background()
+	got, err := c.Request(ctx, "test prompt")
 
 	require.NoError(t, err)
 	require.Equal(t, want, got)
