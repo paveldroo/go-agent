@@ -15,8 +15,9 @@ import (
 )
 
 var (
-	errStatusCode = errors.New("llm request status code")
-	errNoContent  = errors.New("no content from llm")
+	errStatusCode       = errors.New("llm request status code")
+	errNoContent        = errors.New("no content from llm")
+	errStatusBadRequest = errors.New("status 400 from server")
 )
 
 type Client struct {
@@ -73,13 +74,17 @@ func (c *Client) Request(prompt string) (string, error) {
 	}
 	defer res.Body.Close()
 
-	if res.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("%w: %d", errStatusCode, res.StatusCode)
-	}
-
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return "", fmt.Errorf("read response body: %w", err)
+	}
+
+	if res.StatusCode != http.StatusOK {
+		if res.StatusCode == http.StatusBadRequest {
+			return "", fmt.Errorf("%w, body: %s", errStatusBadRequest, body)
+		}
+
+		return "", fmt.Errorf("%w: %d", errStatusCode, res.StatusCode)
 	}
 
 	chatResponse := ChatResponse{
@@ -98,10 +103,23 @@ func (c *Client) Request(prompt string) (string, error) {
 	firstChoice := chatResponse.Choices[0]
 
 	if len(firstChoice.Message.ToolCalls) != 0 {
-		firstToolCall := firstChoice.Message.ToolCalls[0]
-
-		return fmt.Sprintf("%v", firstToolCall), nil
+		return printToolCallArgs(firstChoice)
 	}
 
 	return firstChoice.Message.Content, nil
+}
+
+func printToolCallArgs(choice Choice) (string, error) {
+	firstToolCall := choice.Message.ToolCalls[0]
+
+	var args struct {
+		City string `json:"city"`
+	}
+
+	err := firstToolCall.Args(&args)
+	if err != nil {
+		return "", fmt.Errorf("unmarshal tool call args: %w", err)
+	}
+
+	return fmt.Sprintf("%s(city=%q)", firstToolCall.Function.Name, args.City), nil
 }
