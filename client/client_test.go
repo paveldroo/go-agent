@@ -67,7 +67,7 @@ func TestClient_Request(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			require.Equal(t, want, got)
+			require.Equal(t, want, got.Content)
 		})
 	}
 }

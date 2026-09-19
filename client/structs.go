@@ -5,6 +5,11 @@ import (
 	"github.com/paveldroo/go-agent/tool/tool_call"
 )
 
+const (
+	ReasonToolCalls = "tool_calls"
+	ReasonLength    = "length"
+)
+
 type Message struct {
 	Role      string               `json:"role"`
 	Content   string               `json:"content"`

@@ -15,19 +15,21 @@ import (
 	"github.com/paveldroo/go-agent/tool/tool_call"
 )
 
-const (
-	reasonToolCalls = "tool_calls"
-	reasonLength    = "length"
-	httpTimeout     = 30 * time.Second
-)
+const httpTimeout = 30 * time.Second
 
 var (
 	ErrTruncated          = errors.New("response from llm is truncated")
+	ErrToolCallsCorrupted = errors.New("it seems tool calls tokens arrived corrupted")
 	errStatusCode         = errors.New("llm request status code")
 	errNoContent          = errors.New("no content from llm")
 	errStatusBadRequest   = errors.New("status 400 from server")
-	errToolCallsCorrupted = errors.New("it seems tool calls tokens arrived corrupted")
 )
+
+type LLMResponse struct {
+	FinishReason string
+	Content      string
+	ToolCalls    []tool_call.ToolCall
+}
 
 type Client struct {
 	http        http.Client
@@ -47,7 +49,7 @@ func New(cfg *config.Config) *Client {
 	}
 }
 
-func (c *Client) Request(ctx context.Context, prompt string) (string, error) {
+func (c *Client) Request(ctx context.Context, prompt string) (*LLMResponse, error) {
 	m := Message{
 		Role:      "user",
 		Content:   prompt,
@@ -67,12 +69,12 @@ func (c *Client) Request(ctx context.Context, prompt string) (string, error) {
 
 	b, err := json.Marshal(cr)
 	if err != nil {
-		return "", fmt.Errorf("marshal chat request: %w", err)
+		return nil, fmt.Errorf("marshal chat request: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.LLMURL, bytes.NewBuffer(b))
 	if err != nil {
-		return "", fmt.Errorf("new request to llm: %w", err)
+		return nil, fmt.Errorf("new request to llm: %w", err)
 	}
 
 	req.Header.Set("Authorization", "Bearer "+c.cfg.APIKey)
@@ -80,75 +82,58 @@ func (c *Client) Request(ctx context.Context, prompt string) (string, error) {
 
 	res, err := c.http.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("make request to llm: %w", err)
+		return nil, fmt.Errorf("make request to llm: %w", err)
 	}
 	defer res.Body.Close()
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return "", fmt.Errorf("read response body: %w", err)
+		return nil, fmt.Errorf("read response body: %w", err)
 	}
 
 	if res.StatusCode != http.StatusOK {
 		if res.StatusCode == http.StatusBadRequest {
-			return "", fmt.Errorf("%w, body: %s", errStatusBadRequest, body)
+			return nil, fmt.Errorf("%w, body: %s", errStatusBadRequest, body)
 		}
 
-		return "", fmt.Errorf("%w: %d, body: %s", errStatusCode, res.StatusCode, body)
+		return nil, fmt.Errorf("%w: %d, body: %s", errStatusCode, res.StatusCode, body)
 	}
 
-	content, err := processRes(body)
+	llmResponse, err := processRes(body)
 	if err != nil {
-		return "", fmt.Errorf("process response: %w", err)
+		return nil, fmt.Errorf("process response: %w", err)
 	}
 
-	return content, nil
+	return llmResponse, nil
 }
 
-func processRes(body []byte) (string, error) {
+func processRes(body []byte) (*LLMResponse, error) {
 	chatResponse := ChatResponse{
 		Choices: []Choice{},
 	}
 
 	err := json.Unmarshal(body, &chatResponse)
 	if err != nil {
-		return "", fmt.Errorf("unmarshal response body to chat request: %w", err)
+		return nil, fmt.Errorf("unmarshal response body to chat request: %w", err)
 	}
 
 	if len(chatResponse.Choices) == 0 {
-		return "", errNoContent
+		return nil, errNoContent
 	}
 
 	firstChoice := chatResponse.Choices[0]
 
-	if firstChoice.FinishReason == reasonLength {
+	if firstChoice.FinishReason == ReasonLength {
 		if len(firstChoice.Message.ToolCalls) != 0 {
-			return "", fmt.Errorf("%w: %v", ErrTruncated, firstChoice.Message.ToolCalls[0].Function.Arguments)
+			return nil, fmt.Errorf("%w: %v", ErrTruncated, firstChoice.Message.ToolCalls[0].Function.Arguments)
 		}
 
-		return "", fmt.Errorf("%w: %v", ErrTruncated, firstChoice.Message.Content)
+		return nil, fmt.Errorf("%w: %v", ErrTruncated, firstChoice.Message.Content)
 	}
 
-	if firstChoice.FinishReason == reasonToolCalls {
-		return parseToolCallArgs(firstChoice)
-	}
-
-	return firstChoice.Message.Content, nil
-}
-
-func parseToolCallArgs(choice Choice) (string, error) {
-	if len(choice.Message.ToolCalls) == 0 {
-		return "", errToolCallsCorrupted
-	}
-	firstToolCall := choice.Message.ToolCalls[0]
-
-	weatherArgs := tool.WeatherArgs{
-		City: "",
-	}
-	err := firstToolCall.Args(&weatherArgs)
-	if err != nil {
-		return "", fmt.Errorf("unmarshal tool call args: %w", err)
-	}
-
-	return fmt.Sprintf("%s(city=%q)", firstToolCall.Function.Name, weatherArgs.City), nil
+	return &LLMResponse{
+		FinishReason: firstChoice.FinishReason,
+		Content:      firstChoice.Message.Content,
+		ToolCalls:    firstChoice.Message.ToolCalls,
+	}, nil
 }
