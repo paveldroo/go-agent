@@ -22,6 +22,7 @@ const (
 )
 
 var (
+	ErrTruncated          = errors.New("response from llm is truncated")
 	errStatusCode         = errors.New("llm request status code")
 	errNoContent          = errors.New("no content from llm")
 	errStatusBadRequest   = errors.New("status 400 from server")
@@ -96,11 +97,20 @@ func (c *Client) Request(ctx context.Context, prompt string) (string, error) {
 		return "", fmt.Errorf("%w: %d, body: %s", errStatusCode, res.StatusCode, body)
 	}
 
+	content, err := processRes(body)
+	if err != nil {
+		return "", fmt.Errorf("process response: %w", err)
+	}
+
+	return content, nil
+}
+
+func processRes(body []byte) (string, error) {
 	chatResponse := ChatResponse{
 		Choices: []Choice{},
 	}
 
-	err = json.Unmarshal(body, &chatResponse)
+	err := json.Unmarshal(body, &chatResponse)
 	if err != nil {
 		return "", fmt.Errorf("unmarshal response body to chat request: %w", err)
 	}
@@ -111,8 +121,15 @@ func (c *Client) Request(ctx context.Context, prompt string) (string, error) {
 
 	firstChoice := chatResponse.Choices[0]
 
-	if firstChoice.FinishReason == reasonToolCalls ||
-		(firstChoice.FinishReason == reasonLength && len(firstChoice.Message.ToolCalls) != 0) {
+	if firstChoice.FinishReason == reasonLength {
+		if len(firstChoice.Message.ToolCalls) != 0 {
+			return "", fmt.Errorf("%w: %v", ErrTruncated, firstChoice.Message.ToolCalls[0].Function.Arguments)
+		}
+
+		return "", fmt.Errorf("%w: %v", ErrTruncated, firstChoice.Message.Content)
+	}
+
+	if firstChoice.FinishReason == reasonToolCalls {
 		return parseToolCallArgs(firstChoice)
 	}
 
