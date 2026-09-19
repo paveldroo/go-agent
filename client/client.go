@@ -20,8 +20,9 @@ const httpTimeout = 30 * time.Second
 var (
 	ErrTruncated          = errors.New("response from llm is truncated")
 	ErrToolCallsCorrupted = errors.New("it seems tool calls tokens arrived corrupted")
+	errUnexpectedReason   = errors.New("unexpected finish reason")
 	errStatusCode         = errors.New("llm request status code")
-	errNoContent          = errors.New("no content from llm")
+	errNoChoices          = errors.New("no choices from llm")
 	errStatusBadRequest   = errors.New("status 400 from server")
 )
 
@@ -32,20 +33,20 @@ type LLMResponse struct {
 }
 
 type Client struct {
-	http        http.Client
-	cfg         *config.Config
-	weatherTool tool.Tool
+	http  http.Client
+	cfg   *config.Config
+	tools []tool.Tool
 }
 
-func New(cfg *config.Config) *Client {
+func New(cfg *config.Config, tools ...tool.Tool) *Client {
 	c := http.Client{ //nolint:exhaustruct // it's ok for petproject
 		Timeout: httpTimeout,
 	}
 
 	return &Client{
-		http:        c,
-		cfg:         cfg,
-		weatherTool: tool.WeatherTool(),
+		http:  c,
+		cfg:   cfg,
+		tools: tools,
 	}
 }
 
@@ -63,7 +64,7 @@ func (c *Client) Request(ctx context.Context, prompt string) (*LLMResponse, erro
 		ChatTemplateKwargs: ChatTemplateKwargs{
 			EnableThinking: false,
 		},
-		Tools:      []tool.Tool{c.weatherTool},
+		Tools:      c.tools,
 		ToolChoice: "auto",
 	}
 
@@ -118,7 +119,7 @@ func processRes(body []byte) (*LLMResponse, error) {
 	}
 
 	if len(chatResponse.Choices) == 0 {
-		return nil, errNoContent
+		return nil, errNoChoices
 	}
 
 	firstChoice := chatResponse.Choices[0]
@@ -129,6 +130,10 @@ func processRes(body []byte) (*LLMResponse, error) {
 		}
 
 		return nil, fmt.Errorf("%w: %v", ErrTruncated, firstChoice.Message.Content)
+	}
+
+	if firstChoice.FinishReason != ReasonStop {
+		return nil, fmt.Errorf("%w: %s", errUnexpectedReason, firstChoice.FinishReason)
 	}
 
 	return &LLMResponse{

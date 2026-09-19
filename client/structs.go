@@ -8,6 +8,7 @@ import (
 const (
 	ReasonToolCalls = "tool_calls"
 	ReasonLength    = "length"
+	ReasonStop      = "stop"
 )
 
 type Message struct {

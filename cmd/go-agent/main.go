@@ -40,7 +40,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("parse config: %w", err)
 	}
-	c := client.New(cfg)
+	c := client.New(cfg, tool.WeatherTool())
 
 	ctx := context.Background()
 
@@ -63,17 +63,7 @@ func printResult(resp *client.LLMResponse) error {
 		if len(resp.ToolCalls) == 0 {
 			return fmt.Errorf("%w: no tool calls in response", client.ErrToolCallsCorrupted)
 		}
-		firstToolCall := resp.ToolCalls[0]
-
-		weatherArgs := tool.WeatherArgs{
-			City: "",
-		}
-		err := firstToolCall.Args(&weatherArgs)
-		if err != nil {
-			return fmt.Errorf("unmarshal tool call args: %w", err)
-		}
-
-		content = fmt.Sprintf("%s(city=%q)", firstToolCall.Function.Name, weatherArgs.City)
+		content = resp.ToolCalls[0].Function.Arguments
 	}
 
 	fmt.Fprintln(os.Stdout, content)
