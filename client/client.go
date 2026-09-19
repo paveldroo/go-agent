@@ -132,13 +132,13 @@ func processRes(body []byte) (*LLMResponse, error) {
 		return nil, fmt.Errorf("%w: %v", ErrTruncated, firstChoice.Message.Content)
 	}
 
-	if firstChoice.FinishReason != ReasonStop {
-		return nil, fmt.Errorf("%w: %s", errUnexpectedReason, firstChoice.FinishReason)
+	if firstChoice.FinishReason == ReasonStop || firstChoice.FinishReason == ReasonToolCalls {
+		return &LLMResponse{
+			FinishReason: firstChoice.FinishReason,
+			Content:      firstChoice.Message.Content,
+			ToolCalls:    firstChoice.Message.ToolCalls,
+		}, nil
 	}
 
-	return &LLMResponse{
-		FinishReason: firstChoice.FinishReason,
-		Content:      firstChoice.Message.Content,
-		ToolCalls:    firstChoice.Message.ToolCalls,
-	}, nil
+	return nil, fmt.Errorf("%w: %s", errUnexpectedReason, firstChoice.FinishReason)
 }
