@@ -55,8 +55,6 @@ func New(cfg *config.Config, tools ...tool.Tool) *Client {
 func (c *Client) Request(ctx context.Context, m Message) (*LLMResponse, error) {
 	c.History = append(c.History, m)
 
-	fmt.Println("MESSAGES:", c.History)
-
 	cr := ChatRequest{
 		Model:    c.cfg.ModelName,
 		Messages: c.History,
@@ -72,8 +70,6 @@ func (c *Client) Request(ctx context.Context, m Message) (*LLMResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("marshal chat request: %w", err)
 	}
-
-	fmt.Println("JSON:", string(b))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.LLMURL, bytes.NewBuffer(b))
 	if err != nil {

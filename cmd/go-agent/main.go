@@ -46,7 +46,7 @@ func run() error {
 	ctx := context.Background()
 
 	m := client.Message{
-		Role:      "User",
+		Role:      "user",
 		Content:   prompt,
 		ToolCalls: []tool_call.ToolCall{},
 	}
@@ -84,7 +84,7 @@ func processResponse(ctx context.Context, c *client.Client, resp *client.LLMResp
 			if tool.Function.Name == funcName {
 				callRes := tool.Exec(funcArgs)
 				m := client.Message{
-					Role:      "Tool",
+					Role:      "tool",
 					Content:   callRes,
 					ToolCalls: []tool_call.ToolCall{toolCall},
 				}
