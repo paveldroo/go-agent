@@ -9,6 +9,7 @@ import (
 
 	"github.com/paveldroo/go-agent/client"
 	"github.com/paveldroo/go-agent/config"
+	"github.com/paveldroo/go-agent/tool/tool_call"
 	"github.com/stretchr/testify/require"
 )
 
@@ -71,7 +72,14 @@ func TestClient_Request(t *testing.T) {
 			}
 			c := client.New(&cfg)
 			ctx := context.Background()
-			got, err := c.Request(ctx, "test prompt")
+
+			m := client.Message{
+				Role:      "user",
+				Content:   "test_prompt",
+				ToolCalls: []tool_call.ToolCall{},
+			}
+
+			got, err := c.Request(ctx, m)
 
 			if tt.wantErr != nil {
 				require.ErrorIs(t, err, tt.wantErr)

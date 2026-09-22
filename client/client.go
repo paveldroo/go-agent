@@ -33,9 +33,10 @@ type LLMResponse struct {
 }
 
 type Client struct {
-	http  http.Client
-	cfg   *config.Config
-	tools []tool.Tool
+	http    http.Client
+	cfg     *config.Config
+	Tools   []tool.Tool
+	History []Message
 }
 
 func New(cfg *config.Config, tools ...tool.Tool) *Client {
@@ -46,25 +47,24 @@ func New(cfg *config.Config, tools ...tool.Tool) *Client {
 	return &Client{
 		http:  c,
 		cfg:   cfg,
-		tools: tools,
+		Tools: tools,
+		History: []Message{},
 	}
 }
 
-func (c *Client) Request(ctx context.Context, prompt string) (*LLMResponse, error) {
-	m := Message{
-		Role:      "user",
-		Content:   prompt,
-		ToolCalls: []tool_call.ToolCall{},
-	}
+func (c *Client) Request(ctx context.Context, m Message) (*LLMResponse, error) {
+	c.History = append(c.History, m)
+
+	fmt.Println("MESSAGES:", c.History)
 
 	cr := ChatRequest{
 		Model:    c.cfg.ModelName,
-		Messages: []Message{m},
+		Messages: c.History,
 		Stream:   false,
 		ChatTemplateKwargs: ChatTemplateKwargs{
 			EnableThinking: false,
 		},
-		Tools:      c.tools,
+		Tools:      c.Tools,
 		ToolChoice: "auto",
 	}
 
@@ -72,6 +72,8 @@ func (c *Client) Request(ctx context.Context, prompt string) (*LLMResponse, erro
 	if err != nil {
 		return nil, fmt.Errorf("marshal chat request: %w", err)
 	}
+
+	fmt.Println("JSON:", string(b))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.LLMURL, bytes.NewBuffer(b))
 	if err != nil {

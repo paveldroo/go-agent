@@ -22,6 +22,10 @@ type Tool struct {
 	Function Function `json:"function"`
 }
 
+func (*Tool) Exec(city string) string {
+	return "-99°C, raining frogs in "+city
+}
+
 type WeatherArgs struct {
 	City string `json:"city"`
 }
