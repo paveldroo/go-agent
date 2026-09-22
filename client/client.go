@@ -98,7 +98,7 @@ func (c *Client) Request(ctx context.Context, m Message) (*LLMResponse, error) {
 		return nil, fmt.Errorf("%w: %d, body: %s", errStatusCode, res.StatusCode, body)
 	}
 
-	llmResponse, err := processRes(body)
+	llmResponse, err := c.processRes(body)
 	if err != nil {
 		return nil, fmt.Errorf("process response: %w", err)
 	}
@@ -106,7 +106,7 @@ func (c *Client) Request(ctx context.Context, m Message) (*LLMResponse, error) {
 	return llmResponse, nil
 }
 
-func processRes(body []byte) (*LLMResponse, error) {
+func (c *Client) processRes(body []byte) (*LLMResponse, error) {
 	chatResponse := ChatResponse{
 		Choices: []Choice{},
 	}
@@ -130,7 +130,10 @@ func processRes(body []byte) (*LLMResponse, error) {
 		return nil, fmt.Errorf("%w: %v", ErrTruncated, firstChoice.Message.Content)
 	}
 
+
 	if firstChoice.FinishReason == ReasonStop || firstChoice.FinishReason == ReasonToolCalls {
+		c.History = append(c.History, firstChoice.Message)
+
 		return &LLMResponse{
 			FinishReason: firstChoice.FinishReason,
 			Content:      firstChoice.Message.Content,

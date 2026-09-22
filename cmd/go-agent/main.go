@@ -9,7 +9,6 @@ import (
 	"github.com/paveldroo/go-agent/client"
 	"github.com/paveldroo/go-agent/config"
 	"github.com/paveldroo/go-agent/tool/tool"
-	"github.com/paveldroo/go-agent/tool/tool_call"
 )
 
 var (
@@ -46,9 +45,10 @@ func run() error {
 	ctx := context.Background()
 
 	m := client.Message{
-		Role:      "user",
-		Content:   prompt,
-		ToolCalls: []tool_call.ToolCall{},
+		Role:       "user",
+		Content:    prompt,
+		ToolCalls:  nil,
+		ToolCallID: "",
 	}
 
 	resp, err := c.Request(ctx, m)
@@ -61,11 +61,6 @@ func run() error {
 		return fmt.Errorf("process response: %w", err)
 	}
 
-	// err = printResult(resp)
-	// if err != nil {
-	// 	return fmt.Errorf("print result: %w", err)
-	// }
-
 	return nil
 }
 
@@ -77,16 +72,20 @@ func processResponse(ctx context.Context, c *client.Client, resp *client.LLMResp
 
 		toolCall := resp.ToolCalls[0]
 
-		funcName := toolCall.Function.Name
-		funcArgs := toolCall.Function.Arguments
+		for _, clientTool := range c.Tools {
+			if clientTool.Function.Name == toolCall.Function.Name {
+				var args tool.WeatherArgs
+				err := toolCall.Args(&args)
+				if err != nil {
+					return fmt.Errorf("parse tool call args: %w", err)
+				}
 
-		for _, tool := range c.Tools {
-			if tool.Function.Name == funcName {
-				callRes := tool.Exec(funcArgs)
+				callRes := clientTool.Exec(args.City)
 				m := client.Message{
-					Role:      "tool",
-					Content:   callRes,
-					ToolCalls: []tool_call.ToolCall{toolCall},
+					Role:       "tool",
+					Content:    callRes,
+					ToolCalls:  nil,
+					ToolCallID: toolCall.ID,
 				}
 
 				r, err := c.Request(ctx, m)
@@ -103,20 +102,6 @@ func processResponse(ctx context.Context, c *client.Client, resp *client.LLMResp
 	}
 
 	fmt.Fprintln(os.Stdout, resp.Content)
-
-	return nil
-}
-
-func printResult(resp *client.LLMResponse) error {
-	content := resp.Content
-	if resp.FinishReason == client.ReasonToolCalls {
-		if len(resp.ToolCalls) == 0 {
-			return fmt.Errorf("%w: no tool calls in response", client.ErrToolCallsCorrupted)
-		}
-		content = resp.ToolCalls[0].Function.Arguments
-	}
-
-	fmt.Fprintln(os.Stdout, content)
 
 	return nil
 }
