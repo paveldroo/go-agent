@@ -45,9 +45,9 @@ func New(cfg *config.Config, tools ...tool.Tool) *Client {
 	}
 
 	return &Client{
-		http:  c,
-		cfg:   cfg,
-		Tools: tools,
+		http:    c,
+		cfg:     cfg,
+		Tools:   tools,
 		History: []Message{},
 	}
 }
@@ -129,7 +129,6 @@ func (c *Client) processRes(body []byte) (*LLMResponse, error) {
 
 		return nil, fmt.Errorf("%w: %v", ErrTruncated, firstChoice.Message.Content)
 	}
-
 
 	if firstChoice.FinishReason == ReasonStop || firstChoice.FinishReason == ReasonToolCalls {
 		c.History = append(c.History, firstChoice.Message)

@@ -23,7 +23,7 @@ type Tool struct {
 }
 
 func (*Tool) Exec(city string) string {
-	return "-99°C, raining frogs in "+city
+	return "-99°C, raining frogs in " + city
 }
 
 type WeatherArgs struct {
