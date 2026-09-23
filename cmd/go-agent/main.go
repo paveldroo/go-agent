@@ -14,6 +14,7 @@ import (
 var (
 	errMissedArgument = errors.New(`missing argument, usage: <go-agent "what is weather in Paris?">`)
 	errDefineTask     = errors.New("you should define a task for agent")
+	errNoToolFound    = errors.New("no tool was found by name")
 )
 
 func main() {
@@ -57,49 +58,47 @@ func run() error {
 			return fmt.Errorf("requesting llm: %w", err)
 		}
 
-		loopMessage, err := processResponse(ctx, c, resp)
-		if err != nil {
-			return fmt.Errorf("process response: %w", err)
-		}
+		if resp.FinishReason != client.ReasonToolCalls {
+			fmt.Fprintln(os.Stdout, resp.Content)
 
-		if loopMessage == nil {
 			break
 		}
 
-		message = *loopMessage
+		message, err = handleToolCall(c, resp)
+		if err != nil {
+			return fmt.Errorf("process response: %w", err)
+		}
 	}
 
 	return nil
 }
 
-func processResponse(ctx context.Context, c *client.Client, resp *client.LLMResponse) (*client.Message, error) {
-	if resp.FinishReason == client.ReasonToolCalls {
-		if len(resp.ToolCalls) == 0 {
-			return nil, fmt.Errorf("%w: reason tool calls, but no tool calls objects in response", client.ErrToolCallsCorrupted)
-		}
+func handleToolCall(c *client.Client, resp *client.LLMResponse) (client.Message, error) {
+	if len(resp.ToolCalls) == 0 {
+		return client.Message{}, fmt.Errorf("%w: reason tool calls, but no tool calls objects in response", client.ErrToolCallsCorrupted)
+	}
 
-		toolCall := resp.ToolCalls[0]
+	toolCall := resp.ToolCalls[0]
+	toolName := toolCall.Function.Name
 
-		for _, clientTool := range c.Tools {
-			if clientTool.Function.Name == toolCall.Function.Name {
-				var args tool.WeatherArgs
-				err := toolCall.Args(&args)
-				if err != nil {
-					return nil, fmt.Errorf("parse tool call args: %w", err)
-				}
-
-				callRes := clientTool.Exec(args.City)
-				return &client.Message{
-					Role:       "tool",
-					Content:    callRes,
-					ToolCalls:  nil,
-					ToolCallID: toolCall.ID,
-				}, nil
+	for _, clientTool := range c.Tools {
+		if clientTool.Function.Name == toolName {
+			var args tool.WeatherArgs
+			err := toolCall.Args(&args)
+			if err != nil {
+				return client.Message{}, fmt.Errorf("parse tool call args: %w", err)
 			}
+
+			callRes := clientTool.Exec(args.City)
+
+			return client.Message{
+				Role:       "tool",
+				Content:    callRes,
+				ToolCalls:  nil,
+				ToolCallID: toolCall.ID,
+			}, nil
 		}
 	}
 
-	fmt.Fprintln(os.Stdout, resp.Content)
-
-	return nil, nil
+	return client.Message{}, fmt.Errorf("%w: %s", errNoToolFound, toolName)
 }
