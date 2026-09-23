@@ -44,30 +44,38 @@ func run() error {
 
 	ctx := context.Background()
 
-	m := client.Message{
+	message := client.Message{
 		Role:       "user",
 		Content:    prompt,
 		ToolCalls:  nil,
 		ToolCallID: "",
 	}
 
-	resp, err := c.Request(ctx, m)
-	if err != nil {
-		return fmt.Errorf("requesting llm: %w", err)
-	}
+	for {
+		resp, err := c.Request(ctx, message)
+		if err != nil {
+			return fmt.Errorf("requesting llm: %w", err)
+		}
 
-	err = processResponse(ctx, c, resp)
-	if err != nil {
-		return fmt.Errorf("process response: %w", err)
+		loopMessage, err := processResponse(ctx, c, resp)
+		if err != nil {
+			return fmt.Errorf("process response: %w", err)
+		}
+
+		if loopMessage == nil {
+			break
+		}
+
+		message = *loopMessage
 	}
 
 	return nil
 }
 
-func processResponse(ctx context.Context, c *client.Client, resp *client.LLMResponse) error {
+func processResponse(ctx context.Context, c *client.Client, resp *client.LLMResponse) (*client.Message, error) {
 	if resp.FinishReason == client.ReasonToolCalls {
 		if len(resp.ToolCalls) == 0 {
-			return fmt.Errorf("%w: reason tool calls, but no tool calls objects in response", client.ErrToolCallsCorrupted)
+			return nil, fmt.Errorf("%w: reason tool calls, but no tool calls objects in response", client.ErrToolCallsCorrupted)
 		}
 
 		toolCall := resp.ToolCalls[0]
@@ -77,31 +85,21 @@ func processResponse(ctx context.Context, c *client.Client, resp *client.LLMResp
 				var args tool.WeatherArgs
 				err := toolCall.Args(&args)
 				if err != nil {
-					return fmt.Errorf("parse tool call args: %w", err)
+					return nil, fmt.Errorf("parse tool call args: %w", err)
 				}
 
 				callRes := clientTool.Exec(args.City)
-				m := client.Message{
+				return &client.Message{
 					Role:       "tool",
 					Content:    callRes,
 					ToolCalls:  nil,
 					ToolCallID: toolCall.ID,
-				}
-
-				r, err := c.Request(ctx, m)
-				if err != nil {
-					return fmt.Errorf("requesting llm from processResponse: %w", err)
-				}
-
-				err = processResponse(ctx, c, r)
-				if err != nil {
-					return fmt.Errorf("process response: %w", err)
-				}
+				}, nil
 			}
 		}
 	}
 
 	fmt.Fprintln(os.Stdout, resp.Content)
 
-	return nil
+	return nil, nil
 }
