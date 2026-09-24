@@ -12,10 +12,11 @@ const (
 )
 
 type Message struct {
-	Role       string               `json:"role"`
-	Content    string               `json:"content"`
-	ToolCalls  []tool_call.ToolCall `json:"tool_calls,omitempty"`
-	ToolCallID string               `json:"tool_call_id,omitempty"`
+	Role             string               `json:"role"`
+	Content          string               `json:"content"`
+	ReasoningContent string               `json:"reasoning_content,omitempty"`
+	ToolCalls        []tool_call.ToolCall `json:"tool_calls,omitempty"`
+	ToolCallID       string               `json:"tool_call_id,omitempty"`
 }
 
 type ChatTemplateKwargs struct {
