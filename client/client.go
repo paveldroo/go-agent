@@ -12,31 +12,20 @@ import (
 
 	"github.com/paveldroo/go-agent/config"
 	"github.com/paveldroo/go-agent/tool/tool"
-	"github.com/paveldroo/go-agent/tool/tool_call"
 )
 
 const httpTimeout = 30 * time.Second
 
 var (
-	ErrTruncated          = errors.New("response from llm is truncated")
 	ErrToolCallsCorrupted = errors.New("it seems tool calls tokens arrived corrupted")
-	errUnexpectedReason   = errors.New("unexpected finish reason")
 	errStatusCode         = errors.New("llm request status code")
-	errNoChoices          = errors.New("no choices from llm")
 	errStatusBadRequest   = errors.New("status 400 from server")
 )
 
-type LLMResponse struct {
-	FinishReason string
-	Content      string
-	ToolCalls    []tool_call.ToolCall
-}
-
 type Client struct {
-	http    http.Client
-	cfg     *config.Config
-	Tools   []tool.Tool
-	History []Message
+	http  http.Client
+	cfg   *config.Config
+	Tools []tool.Tool
 }
 
 func New(cfg *config.Config, tools ...tool.Tool) *Client {
@@ -45,19 +34,16 @@ func New(cfg *config.Config, tools ...tool.Tool) *Client {
 	}
 
 	return &Client{
-		http:    c,
-		cfg:     cfg,
-		Tools:   tools,
-		History: []Message{},
+		http:  c,
+		cfg:   cfg,
+		Tools: tools,
 	}
 }
 
-func (c *Client) Request(ctx context.Context, m Message) (*LLMResponse, error) {
-	c.History = append(c.History, m)
-
+func (c *Client) Request(ctx context.Context, history []Message) (ChatResponse, error) {
 	cr := ChatRequest{
 		Model:    c.cfg.ModelName,
-		Messages: c.History,
+		Messages: history,
 		Stream:   false,
 		ChatTemplateKwargs: ChatTemplateKwargs{
 			EnableThinking: false,
@@ -68,12 +54,12 @@ func (c *Client) Request(ctx context.Context, m Message) (*LLMResponse, error) {
 
 	b, err := json.Marshal(cr)
 	if err != nil {
-		return nil, fmt.Errorf("marshal chat request: %w", err)
+		return ChatResponse{}, fmt.Errorf("marshal chat request: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.LLMURL, bytes.NewBuffer(b))
 	if err != nil {
-		return nil, fmt.Errorf("new request to llm: %w", err)
+		return ChatResponse{}, fmt.Errorf("new request to llm: %w", err)
 	}
 
 	req.Header.Set("Authorization", "Bearer "+c.cfg.APIKey)
@@ -81,64 +67,31 @@ func (c *Client) Request(ctx context.Context, m Message) (*LLMResponse, error) {
 
 	res, err := c.http.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("make request to llm: %w", err)
+		return ChatResponse{}, fmt.Errorf("make request to llm: %w", err)
 	}
 	defer res.Body.Close()
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("read response body: %w", err)
+		return ChatResponse{}, fmt.Errorf("read response body: %w", err)
 	}
 
 	if res.StatusCode != http.StatusOK {
 		if res.StatusCode == http.StatusBadRequest {
-			return nil, fmt.Errorf("%w, body: %s", errStatusBadRequest, body)
+			return ChatResponse{}, fmt.Errorf("%w, body: %s", errStatusBadRequest, body)
 		}
 
-		return nil, fmt.Errorf("%w: %d, body: %s", errStatusCode, res.StatusCode, body)
+		return ChatResponse{}, fmt.Errorf("%w: %d, body: %s", errStatusCode, res.StatusCode, body)
 	}
 
-	llmResponse, err := c.processRes(body)
-	if err != nil {
-		return nil, fmt.Errorf("process response: %w", err)
-	}
-
-	return llmResponse, nil
-}
-
-func (c *Client) processRes(body []byte) (*LLMResponse, error) {
 	chatResponse := ChatResponse{
 		Choices: []Choice{},
 	}
 
-	err := json.Unmarshal(body, &chatResponse)
+	err = json.Unmarshal(body, &chatResponse)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshal response body to chat request: %w", err)
+		return ChatResponse{}, fmt.Errorf("unmarshal response body to chat request: %w", err)
 	}
 
-	if len(chatResponse.Choices) == 0 {
-		return nil, errNoChoices
-	}
-
-	firstChoice := chatResponse.Choices[0]
-
-	if firstChoice.FinishReason == ReasonLength {
-		if len(firstChoice.Message.ToolCalls) != 0 {
-			return nil, fmt.Errorf("%w: %v", ErrTruncated, firstChoice.Message.ToolCalls[0].Function.Arguments)
-		}
-
-		return nil, fmt.Errorf("%w: %v", ErrTruncated, firstChoice.Message.Content)
-	}
-
-	if firstChoice.FinishReason == ReasonStop || firstChoice.FinishReason == ReasonToolCalls {
-		c.History = append(c.History, firstChoice.Message)
-
-		return &LLMResponse{
-			FinishReason: firstChoice.FinishReason,
-			Content:      firstChoice.Message.Content,
-			ToolCalls:    firstChoice.Message.ToolCalls,
-		}, nil
-	}
-
-	return nil, fmt.Errorf("%w: %s", errUnexpectedReason, firstChoice.FinishReason)
+	return chatResponse, nil
 }
