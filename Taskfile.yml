@@ -16,3 +16,7 @@ tasks:
 
   test:
     - go test ./... -v
+
+  gen-mock:
+    cmds:
+      - mockery

@@ -4,6 +4,6 @@ filename: '{{.InterfaceName | snakecase }}_mock.go'
 pkgname: mocks
 template: testify
 packages:
-  github.com/paveldroo/go-agent/request:
+  github.com/paveldroo/go-agent/conversation:
     interfaces:
-      Client: {}
+      LLMClient: {}

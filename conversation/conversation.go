@@ -18,6 +18,11 @@ var (
 	errNoToolFound      = errors.New("no tool was found by name")
 )
 
+type LLMClient interface {
+	Request(context.Context, []client.Message) (client.ChatResponse, error)
+	Tools() []tool.Tool
+}
+
 type LLMResponse struct {
 	FinishReason string
 	Content      string
@@ -34,7 +39,7 @@ func New() *Conversation {
 	}
 }
 
-func (c *Conversation) Run(llmClient *client.Client, prompt string) error {
+func (c *Conversation) Run(llmClient LLMClient, prompt string) error {
 	ctx := context.Background()
 
 	message := client.Message{
@@ -100,7 +105,7 @@ func (c *Conversation) processRes(cr client.ChatResponse) (*LLMResponse, error) 
 	return nil, fmt.Errorf("%w: %s", errUnexpectedReason, firstChoice.FinishReason)
 }
 
-func handleToolCall(c *client.Client, resp *LLMResponse) (client.Message, error) {
+func handleToolCall(c LLMClient, resp *LLMResponse) (client.Message, error) {
 	if len(resp.ToolCalls) == 0 {
 		return client.Message{}, fmt.Errorf("%w: reason tool calls, but no tool calls objects in response", client.ErrToolCallsCorrupted)
 	}
@@ -108,7 +113,7 @@ func handleToolCall(c *client.Client, resp *LLMResponse) (client.Message, error)
 	toolCall := resp.ToolCalls[0]
 	toolName := toolCall.Function.Name
 
-	for _, clientTool := range c.Tools {
+	for _, clientTool := range c.Tools() {
 		if clientTool.Function.Name == toolName {
 			var args tool.WeatherArgs
 			err := toolCall.Args(&args)

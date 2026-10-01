@@ -25,7 +25,7 @@ var (
 type Client struct {
 	http  http.Client
 	cfg   *config.Config
-	Tools []tool.Tool
+	tools []tool.Tool
 }
 
 func New(cfg *config.Config, tools ...tool.Tool) *Client {
@@ -36,8 +36,12 @@ func New(cfg *config.Config, tools ...tool.Tool) *Client {
 	return &Client{
 		http:  c,
 		cfg:   cfg,
-		Tools: tools,
+		tools: tools,
 	}
+}
+
+func (c *Client) Tools() []tool.Tool {
+	return c.tools
 }
 
 func (c *Client) Request(ctx context.Context, history []Message) (ChatResponse, error) {
@@ -48,7 +52,7 @@ func (c *Client) Request(ctx context.Context, history []Message) (ChatResponse, 
 		ChatTemplateKwargs: ChatTemplateKwargs{
 			EnableThinking: false,
 		},
-		Tools:      c.Tools,
+		Tools:      c.tools,
 		ToolChoice: "auto",
 	}
 
