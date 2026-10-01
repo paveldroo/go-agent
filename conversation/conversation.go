@@ -49,9 +49,8 @@ func (c *Conversation) Run(llmClient LLMClient, prompt string) error {
 		ToolCallID: "",
 	}
 
-	c.History = append(c.History, message)
-
 	for {
+		c.History = append(c.History, message)
 		resp, err := llmClient.Request(ctx, c.History)
 		if err != nil {
 			return fmt.Errorf("requesting llm: %w", err)
