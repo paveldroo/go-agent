@@ -47,6 +47,5 @@ func run() error {
 		return fmt.Errorf("run conversation: %w", err)
 	}
 
-
 	return nil
 }

@@ -16,6 +16,8 @@ import (
 )
 
 func TestConversation_Run(t *testing.T) {
+	t.Parallel()
+
 	mockLLMClient := mocks.NewLLMClient(t)
 	mockLLMClient.EXPECT().Request(mock.Anything, mock.Anything).Return(buildChatResponse(t, "testdata/response_tool_call.json"), nil).Once()
 	mockLLMClient.EXPECT().Tools().Return([]tool.Tool{tool.WeatherTool()}).Once()
@@ -36,12 +38,15 @@ func TestConversation_Run(t *testing.T) {
 
 	var buf bytes.Buffer
 	written, err := io.Copy(&buf, r)
-	require.Greater(t, written, int64(0))
+	require.NoError(t, err)
+	require.Positive(t, written)
 
 	require.Equal(t, "The weather in Paris is -99°C, raining frogs.\n", buf.String())
 }
 
 func buildChatResponse(t *testing.T, fName string) client.ChatResponse {
+	t.Helper()
+
 	body := mustMockResponse(t, fName)
 
 	var cr client.ChatResponse

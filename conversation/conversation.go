@@ -19,7 +19,7 @@ var (
 )
 
 type LLMClient interface {
-	Request(context.Context, []client.Message) (client.ChatResponse, error)
+	Request(ctx context.Context, history []client.Message) (client.ChatResponse, error)
 	Tools() []tool.Tool
 }
 
@@ -43,10 +43,11 @@ func (c *Conversation) Run(llmClient LLMClient, prompt string) error {
 	ctx := context.Background()
 
 	message := client.Message{
-		Role:       "user",
-		Content:    prompt,
-		ToolCalls:  nil,
-		ToolCallID: "",
+		Role:             "user",
+		Content:          prompt,
+		ToolCalls:        nil,
+		ToolCallID:       "",
+		ReasoningContent: nil,
 	}
 
 	for {
@@ -123,10 +124,11 @@ func handleToolCall(c LLMClient, resp *LLMResponse) (client.Message, error) {
 			callRes := clientTool.Exec(args.City)
 
 			return client.Message{
-				Role:       "tool",
-				Content:    callRes,
-				ToolCalls:  nil,
-				ToolCallID: toolCall.ID,
+				Role:             "tool",
+				Content:          callRes,
+				ToolCalls:        nil,
+				ToolCallID:       toolCall.ID,
+				ReasoningContent: nil,
 			}, nil
 		}
 	}
