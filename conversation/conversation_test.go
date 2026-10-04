@@ -42,6 +42,15 @@ func TestConversation_Run(t *testing.T) {
 	require.Positive(t, written)
 
 	require.Equal(t, "The weather in Paris is -99°C, raining frogs.\n", buf.String())
+	require.Len(t, conv.History, 4)
+
+	llmMessage := conv.History[1]
+	require.NotEmpty(t, llmMessage.ToolCalls)
+	toolCall := llmMessage.ToolCalls[0]
+	require.Equal(t, toolCall.Function.Name, "get_weather")
+
+	toolCallMessage := conv.History[2]
+	require.Equal(t, toolCallMessage.Content, "-99°C, raining frogs in Paris")
 }
 
 func buildChatResponse(t *testing.T, fName string) client.ChatResponse {
