@@ -30,20 +30,20 @@ func TestClient_Request(t *testing.T) {
 		{
 			name:         "finish reason length, no tool call",
 			mockResponse: mustMockResponse(t, "testdata/response_length_text.json"),
-			finishReason: "",
-			want:         "",
+			finishReason: client.ReasonLength,
+			want:         "Why don't scientists trust atoms? Because they make up ev",
 		},
 		{
 			name:         "finish reason length, has tool call",
 			mockResponse: mustMockResponse(t, "testdata/response_length_tool_call.json"),
-			finishReason: "",
-			want:         "length",
+			finishReason: client.ReasonLength,
+			want:         "",
 		},
 		{
 			name:         "finish reason tool calls",
 			mockResponse: mustMockResponse(t, "testdata/response_tool_call.json"),
 			finishReason: client.ReasonToolCalls,
-			want:         "length",
+			want:         "",
 		},
 	}
 
@@ -75,12 +75,6 @@ func TestClient_Request(t *testing.T) {
 			}
 
 			got, err := c.Request(ctx, []client.Message{m})
-
-			// if tt.wantErr != nil {
-			// 	require.ErrorIs(t, err, tt.wantErr)
-
-			// 	return
-			// }
 
 			require.NoError(t, err)
 			require.GreaterOrEqual(t, len(got.Choices), 1)
