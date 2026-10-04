@@ -47,10 +47,10 @@ func TestConversation_Run(t *testing.T) {
 	llmMessage := conv.History[1]
 	require.NotEmpty(t, llmMessage.ToolCalls)
 	toolCall := llmMessage.ToolCalls[0]
-	require.Equal(t, toolCall.Function.Name, "get_weather")
+	require.Equal(t, "get_weather", toolCall.Function.Name)
 
 	toolCallMessage := conv.History[2]
-	require.Equal(t, toolCallMessage.Content, "-99°C, raining frogs in Paris")
+	require.Equal(t, "-99°C, raining frogs in Paris", toolCallMessage.Content)
 }
 
 func buildChatResponse(t *testing.T, fName string) client.ChatResponse {
