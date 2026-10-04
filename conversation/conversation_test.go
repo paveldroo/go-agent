@@ -49,8 +49,11 @@ func TestConversation_Run(t *testing.T) {
 	toolCall := llmMessage.ToolCalls[0]
 	require.Equal(t, "get_weather", toolCall.Function.Name)
 
+	toolCallID := toolCall.ID
+
 	toolCallMessage := conv.History[2]
 	require.Equal(t, "-99°C, raining frogs in Paris", toolCallMessage.Content)
+	require.Equal(t, toolCallID, toolCallMessage.ToolCallID)
 }
 
 func buildChatResponse(t *testing.T, fName string) client.ChatResponse {
