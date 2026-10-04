@@ -39,9 +39,7 @@ func New() *Conversation {
 	}
 }
 
-func (c *Conversation) Run(llmClient LLMClient, prompt string) error {
-	ctx := context.Background()
-
+func (c *Conversation) Run(ctx context.Context, llmClient LLMClient, prompt string) error {
 	message := client.Message{
 		Role:             "user",
 		Content:          prompt,

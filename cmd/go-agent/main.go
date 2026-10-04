@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -40,9 +41,12 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("parse config: %w", err)
 	}
-	c := client.New(cfg, tool.WeatherTool())
+	ctx := context.Background()
+
 	conv := conversation.New()
-	err = conv.Run(c, prompt)
+
+	c := client.New(cfg, tool.WeatherTool())
+	err = conv.Run(ctx, c, prompt)
 	if err != nil {
 		return fmt.Errorf("run conversation: %w", err)
 	}

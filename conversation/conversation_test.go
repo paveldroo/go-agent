@@ -30,7 +30,7 @@ func TestConversation_Run(t *testing.T) {
 
 	conv := conversation.New()
 	prompt := "what is the weather in Paris?"
-	err = conv.Run(mockLLMClient, prompt)
+	err = conv.Run(t.Context(), mockLLMClient, prompt)
 	require.NoError(t, err)
 
 	w.Close()
