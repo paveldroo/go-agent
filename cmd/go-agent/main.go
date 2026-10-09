@@ -50,7 +50,7 @@ func run() error {
 
 	conv := conversation.New()
 
-	c := client.New(cfg, tool.WeatherTool(), tool.CapitalTool())
+	c := client.New(cfg, tool.WeatherTool(), tool.CapitalTool(), tool.InfiniteTool())
 	err = conv.Run(ctx, c, prompt)
 	if err != nil {
 		return fmt.Errorf("run conversation: %w", err)

@@ -1,20 +1,20 @@
 package tool
 
 type Property struct {
-	Type        string `json:"type"`
-	Description string `json:"description"`
+	Type        string `json:"type,omitempty"`
+	Description string `json:"description,omitempty"`
 }
 
 type Parameters struct {
-	Type       string              `json:"type"`
-	Properties map[string]Property `json:"properties"`
-	Required   []string            `json:"required"`
+	Type       string              `json:"type,omitempty"`
+	Properties map[string]Property `json:"properties,omitempty"`
+	Required   []string            `json:"required,omitempty"`
 }
 
 type Function struct {
 	Name        string     `json:"name"`
 	Description string     `json:"description"`
-	Parameters  Parameters `json:"parameters"`
+	Parameters  Parameters `json:"parameters,omitempty"`
 }
 
 type Tool struct {
@@ -66,6 +66,17 @@ func CapitalTool() Tool {
 				},
 				Required:   []string{"country"},
 			},
+		},
+	}
+}
+
+func InfiniteTool() Tool {
+	return Tool{
+		Type:     "function",
+		Function: Function{
+			Name:        "infinite_tool",
+			Description: "Tool to call on any try to think to get additional context.",
+			Parameters:  Parameters{},
 		},
 	}
 }
