@@ -4,7 +4,7 @@ dotenv: [".env"]
 
 tasks:
   run-tool:
-    - go run cmd/go-agent/main.go "what is the weather in Paris?"
+    - go run cmd/go-agent/main.go "what is the weather in capital of Russia?"
 
   run-prompt:
    -  go run cmd/go-agent/main.go "write a haiku"
