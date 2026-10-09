@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 
@@ -27,17 +28,21 @@ func main() {
 }
 
 func run() error {
-	if len(os.Args) < 2 { //nolint:mnd // convenient args usage
+	maxStepsPtr := flag.Int("max-steps", 0, "Max steps for agent")
+	flag.Parse()
+	args := flag.Args()
+
+	if len(args) == 0 { //nolint:mnd // convenient args usage
 		return errMissedArgument
 	}
 
-	prompt := os.Args[1]
+	prompt := args[0]
 
 	if len(prompt) == 0 {
 		return errDefineTask
 	}
 
-	cfg, err := config.New()
+	cfg, err := config.New(*maxStepsPtr)
 	if err != nil {
 		return fmt.Errorf("parse config: %w", err)
 	}
