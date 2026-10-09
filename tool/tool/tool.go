@@ -41,10 +41,30 @@ func WeatherTool() Tool {
 				Properties: map[string]Property{
 					"city": {
 						Type:        "string",
-						Description: "The city, e.g. San Francisco.",
+						Description: "The city, e.g. Moscow.",
 					},
 				},
 				Required: []string{"city"},
+			},
+		},
+	}
+}
+
+func CapitalTool() Tool {
+	return Tool{
+		Type:     "function",
+		Function: Function{
+			Name:        "get_capital",
+			Description: "Get the capital of the country.",
+			Parameters:  Parameters{
+				Type:       "object",
+				Properties: map[string]Property{
+					"country": {
+						Type:        "string",
+						Description: "The country, e.g. Russia",
+					},
+				},
+				Required:   []string{"country"},
 			},
 		},
 	}
